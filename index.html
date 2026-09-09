@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Meta tags for character encoding and responsive design -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lunyx Aural</title>
+    <style>
+        /* Reset default browser styles and set box-sizing */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Body styles: font, background, text color, and padding */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #480903;
+            color: white;
+            padding: 40px 20px;
+        }
+
+        /* Container for overall page content */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Container for the gallery section */
+        .gallery-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* Gallery layout: 2 columns by default, gap between columns, margin below */
+        .gallery {
+            column-count: 2;
+            column-gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Individual gallery item styles */
+        .gallery-item {
+            break-inside: avoid;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+        
+     /* All interactive visuals */
+.gallery-item iframe {
+    width: 100%;
+    display: block;
+    border: none;
+}
+
+/* Portrait visual */
+.visual-item.portrait iframe {
+    aspect-ratio: 3 / 4;
+}
+
+/* Landscape visual */
+.visual-item.landscape iframe {
+    aspect-ratio: 16 / 9;
+}
+
+/* Square visual */
+.visual-item.square iframe {
+    aspect-ratio: 1 / 1;
+}
+        /* Hover effect for gallery items */
+        .gallery-item:hover {
+            opacity: 0.85;
+        }
+
+        /* Image styles inside gallery items */
+        .gallery-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Pagination container styles */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 2rem 0;
+        }
+
+        /* Pagination dot styles */
+        .pagination-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #d1d1d1;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        /* Pagination dot hover effect */
+        .pagination-dot:hover {
+            background: #a1a1a1;
+        }
+
+        /* Active pagination dot style */
+        .pagination-dot.active {
+            background: #000;
+            transform: scale(1.2);
+        }
+
+        /* Logo image styles */
+        .logo {
+            width: 120px;   /* adjust as needed */
+            height: auto;
+            display: block;
+            margin: 0 auto 2rem auto; /* center and add space below */
+        }
+
+        /* Responsive: 3 columns on medium screens */
+        @media (max-width: 1024px) {
+            .gallery {
+                column-count: 3;
+            }
+        }
+
+        /* Responsive: 2 columns on small screens, smaller gaps and margins */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .gallery {
+                column-count: 2;
+                column-gap: 0.75rem;
+            }
+
+            .gallery-item {
+                margin-bottom: 0.75rem;
+            }
+        }
+
+        /* Responsive: 1 column on extra small screens */
+        @media (max-width: 480px) {
+            .gallery {
+                column-count: 1;
+            }
+       
+        }
+        </style>
+        </head>
+        <body>
+         <!-- Logo image at the top of the page -->
+        <img src="images/Transparent Beige.PNG" alt="Logo" class="logo">
+
+        <!-- Main gallery container -->
+         <div class="gallery-container">
+        <div class="gallery">
+           
+    <!-- Gallery item includes visual -->
+
+            <div class="gallery-item visual-item portrait">
+         <iframe
+        src="visuals/Flowa red orange/index.html"
+        title="Flower Power">
+        </iframe>
+         </div>
+<div class="gallery-item visual-item portrait">
+    <iframe
+        src="visuals/Indented/index.html"
+        title="Indented">
+    </iframe>
+</div>
+            <div class="gallery-item visual-item portrait">
+    <iframe
+        src="visuals/Flowa Powa/index.html"
+        title="Flower Power">
+    </iframe>
+</div>
+
+<div class="gallery-item visual-item portrait">
+    <iframe
+        src="visuals/Corals diff. colours/index.html"
+        title="Coral">
+    </iframe>
+</div>
+
+ <div class="gallery-item visual-item portrait">
+    <iframe
+        src="visuals/Sunshine/index.html"
+        title="Sunshine">
+    </iframe>
+</div>
+
+  
+          
+            
+        </div>
+
+        <!-- Pagination dots for gallery navigation -->
+        <div class="pagination">
+            <div class="pagination-dot active"></div>
+            <div class="pagination-dot"></div>
+            <div class="pagination-dot"></div>
+            <div class="pagination-dot"></div>
+            <div class="pagination-dot"></div>
+        </div>
+    </div>
+
+    <!-- Script for pagination dot interaction -->
+    <script>
+        const dots = document.querySelectorAll('.pagination-dot');
+        
+        dots.forEach((dot, i) => {
+            dot.addEventListener('click', () => {
+                dots.forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

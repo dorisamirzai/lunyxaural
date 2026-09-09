@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Psychedelic Audio Visualizer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <canvas id="c"></canvas>
+
+  <video id="video" playsinline muted style="display:none"></video>
+  <audio id="audio" muted style="display:none"></audio>
+
+  <!-- Drop zone overlay -->
+  <div id="dropzone">
+    <div id="dropInner">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 15V3m0 0L8 7m4-4l4 4"/>
+        <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+      </svg>
+      <p id="dropLabel">Drop an MP3 or MP4 here</p>
+      <p id="dropSub">or click to browse</p>
+      <span id="status"></span>
+    </div>
+  </div>
+
+  <!-- Invisible hover trigger in top-left corner -->
+  <div id="hoverZone"></div>
+
+  <!-- Glass controls panel — top-left -->
+  <div id="controls">
+    <div class="ctrl-row">
+      <button id="playPauseBtn" title="Play / Pause">
+        <svg id="iconPause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="5" y="4" width="4" height="16" rx="1"/>
+          <rect x="15" y="4" width="4" height="16" rx="1"/>
+        </svg>
+        <svg id="iconPlay" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+          <path d="M6 4l14 8-14 8V4z"/>
+        </svg>
+      </button>
+      <span id="trackName">—</span>
+    </div>
+    <button id="reloadBtn">↩ load new file</button>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>

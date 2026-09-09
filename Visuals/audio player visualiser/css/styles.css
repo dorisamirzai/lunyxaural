@@ -1,0 +1,49 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-image: url("/images/fluid2.jpeg");
+    background-size: 95% auto;  /* 80% of viewport width, auto height */
+}
+
+h4{
+font-family:"Lucida Console", "Courier New", monospace;
+font-weight: bold;
+font-size: 20px;
+user-select:none;
+}
+#container{
+    width: 400px;
+    height: 50px;
+    background-color: #3b5481;
+    border-radius:10px;
+    display:flex;
+    align-items: center;
+    flex-direction: row;
+}
+
+/* Fixed-width items */
+#play-pause-button{
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    padding: 0 10px;
+    flex: 0 0 auto;   /* do not grow or shrink */
+}
+
+#current-time,
+#total-time,
+#slash {
+    flex: 0 0 auto;   /* fixed size; do not grow or shrink */
+}
+
+/* Seek bar takes remaining space */
+#seek-bar{
+    flex: 1 1 auto;   /* grow to fill leftover space */
+    width: auto;
+    cursor: pointer;
+    accent-color: #151433;
+}
+

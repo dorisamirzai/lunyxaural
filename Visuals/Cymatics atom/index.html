@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Cymatics</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    overflow:hidden;
+    font-family:'Courier New',monospace;
+  }
+  canvas { display:block; }
+
+  #ui {
+    position:fixed;
+    bottom:32px;
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  button, label {
+    background:transparent;
+    border:1px solid rgba(255,180,40,0.3);
+    color:rgba(255,180,40,0.7);
+    padding:9px 24px;
+    font-family:'Courier New',monospace;
+    font-size:10px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:all 0.3s;
+  }
+  button:hover, label:hover {
+    border-color:rgba(255,180,40,0.9);
+    color:#ffb428;
+  }
+  input[type="file"]{ display:none; }
+
+  #info {
+    position:fixed;
+    top:28px;
+    font-size:10px;
+    letter-spacing:0.18em;
+    color:rgba(255,160,30,0.3);
+    text-transform:uppercase;
+  }
+</style>
+</head>
+<body>
+<div id="info">no source — load a file or use mic</div>
+<canvas id="c"></canvas>
+<div id="ui">
+  <button id="micBtn">🎤 mic</button>
+  <label for="file">load audio</label>
+  <input type="file" id="file" accept="audio/*"/>
+  <button id="play">play</button>
+</div>
+
+<script>
+const canvas  = document.getElementById('c');
+const gl2     = canvas.getContext('2d');
+const info    = document.getElementById('info');
+const playBtn = document.getElementById('play');
+const micBtn  = document.getElementById('micBtn');
+const fileIn  = document.getElementById('file');
+
+let W, H;
+function resize(){
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── Audio core ───────────────────────────────────────────────────────────────
+let actx, analyser, srcNode, audioBuf;
+let playing = false, startTime = 0, startOffset = 0;
+let micStream = null, micNode = null, micActive = false;
+const FFT = 4096;
+
+function boot(){
+  if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if(!analyser){
+    analyser = actx.createAnalyser();
+    analyser.fftSize = FFT;
+    analyser.smoothingTimeConstant = 0.88;
+    analyser.connect(actx.destination);
+  }
+}
+
+// ── Mic ──────────────────────────────────────────────────────────────────────
+micBtn.addEventListener('click', async () => {
+  boot();
+  if(micActive){
+    // stop mic
+    micNode && micNode.disconnect();
+    micStream && micStream.getTracks().forEach(t => t.stop());
+    micNode = null; micStream = null; micActive = false;
+    micBtn.textContent = '🎤 mic';
+    micBtn.style.borderColor = 'rgba(255,180,40,0.3)';
+    micBtn.style.color = 'rgba(255,180,40,0.7)';
+    info.textContent = 'mic off';
+  } else {
+    // stop file playback if running
+    if(playing){ srcNode && srcNode.stop(); playing = false; playBtn.textContent = 'play'; }
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      micNode   = actx.createMediaStreamSource(micStream);
+      micNode.connect(analyser);
+      micActive = true;
+      micBtn.textContent = '🎤 mic on';
+      micBtn.style.borderColor = 'rgba(255,80,80,0.8)';
+      micBtn.style.color = '#ff5050';
+      info.textContent = 'listening via microphone';
+    } catch(err){
+      info.textContent = 'mic access denied — check browser permissions';
+    }
+  }
+});
+
+// ── File loader ──────────────────────────────────────────────────────────────
+fileIn.addEventListener('change', async e => {
+  const f = e.target.files[0]; if(!f) return;
+  // stop mic if active
+  if(micActive){
+    micNode && micNode.disconnect();
+    micStream && micStream.getTracks().forEach(t => t.stop());
+    micNode = null; micStream = null; micActive = false;
+    micBtn.textContent = '🎤 mic';
+    micBtn.style.borderColor = 'rgba(255,180,40,0.3)';
+    micBtn.style.color = 'rgba(255,180,40,0.7)';
+  }
+  info.textContent = f.name;
+  boot();
+  audioBuf = await actx.decodeAudioData(await f.arrayBuffer());
+  startOffset = 0; playing = false; playBtn.textContent = 'play';
+});
+
+// ── File playback ─────────────────────────────────────────────────────────────
+playBtn.addEventListener('click', () => {
+  if(!audioBuf) return;
+  boot();
+  if(playing){
+    startOffset += actx.currentTime - startTime;
+    srcNode.stop(); playing = false; playBtn.textContent = 'play';
+  } else {
+    if(actx.state === 'suspended') actx.resume();
+    srcNode = actx.createBufferSource();
+    srcNode.buffer = audioBuf;
+    srcNode.connect(analyser);
+    srcNode.start(0, startOffset % audioBuf.duration);
+    startTime = actx.currentTime;
+    playing = true; playBtn.textContent = 'pause';
+    srcNode.onended = () => { if(playing){ playing=false; startOffset=0; playBtn.textContent='play'; }};
+  }
+});
+
+// ── Audio features ───────────────────────────────────────────────────────────
+let fArr, tArr;
+function getFeatures(){
+  if(!analyser) return { bass:0, mid:0, high:0, rms:0, spectral:0 };
+  fArr = fArr || new Uint8Array(analyser.frequencyBinCount);
+  tArr = tArr || new Uint8Array(analyser.fftSize);
+  analyser.getByteFrequencyData(fArr);
+  analyser.getByteTimeDomainData(tArr);
+
+  const N = fArr.length;
+  let bass=0, mid=0, high=0, rms=0, sc=0, sw=0;
+  const bE = Math.floor(N*0.04);
+  const mE = Math.floor(N*0.2);
+
+  for(let i=0;i<bE;i++)   bass += fArr[i];
+  for(let i=bE;i<mE;i++)  mid  += fArr[i];
+  for(let i=mE;i<N;i++)   high += fArr[i];
+  for(let i=0;i<tArr.length;i++){ const v=(tArr[i]/128)-1; rms+=v*v; }
+  for(let i=0;i<N;i++){   sc += i*fArr[i]; sw += fArr[i]; }
+
+  return {
+    bass:  (bass/bE)/255,
+    mid:   (mid/(mE-bE))/255,
+    high:  (high/(N-mE))/255,
+    rms:   Math.sqrt(rms/tArr.length),
+    spectral: sw>0 ? (sc/sw)/N : 0,
+  };
+}
+
+// ── Colour helpers ───────────────────────────────────────────────────────────
+// Warm amber palette: black → deep red → orange → gold → white-gold
+function cymaticColor(t, alpha){
+  // t: 0..1, controls warmth
+  const r = Math.min(255, Math.floor(40  + t*215));
+  const g = Math.min(255, Math.floor(t > 0.4 ? (t-0.4)*2.5*180 : 0));
+  const b = Math.min(255, Math.floor(t > 0.75? (t-0.75)*4*120  : 0));
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ── Drawing helpers ───────────────────────────────────────────────────────────
+function drawCurve(pts, width, color){
+  if(pts.length < 2) return;
+  gl2.beginPath();
+  gl2.moveTo(pts[0][0], pts[0][1]);
+  for(let i=1;i<pts.length;i++) gl2.lineTo(pts[i][0], pts[i][1]);
+  gl2.strokeStyle = color;
+  gl2.lineWidth   = width;
+  gl2.stroke();
+}
+
+// ── Main state ───────────────────────────────────────────────────────────────
+let T = 0;          // master time
+let idleT = 0;
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function frame(){
+  requestAnimationFrame(frame);
+  const f = getFeatures();
+
+  if(!playing) idleT += 0.005;
+  const bass  = playing ? f.bass  : 0.18 + 0.10*Math.sin(idleT*0.9);
+  const mid   = playing ? f.mid   : 0.12 + 0.08*Math.sin(idleT*1.4);
+  const high  = playing ? f.high  : 0.05 + 0.03*Math.sin(idleT*2.1);
+  const rms   = playing ? f.rms   : 0.08 + 0.04*Math.sin(idleT*0.7);
+  const spec  = playing ? f.spectral : 0.3 + 0.1*Math.sin(idleT*0.5);
+
+  // speed: quiet = slow drift, loud = fast morph
+  T += 0.004 + rms*0.06 + bass*0.03;
+
+  const cx = W*0.5, cy = H*0.5;
+  const R  = Math.min(W,H)*0.42;   // outer radius
+
+  // ── Trail fade ────────────────────────────────────────────────────────────
+  gl2.fillStyle = `rgba(0,0,0,${0.18 + rms*0.25})`;
+  gl2.fillRect(0,0,W,H);
+
+  // ─── 1. CONCENTRIC INTERFERENCE RINGS ────────────────────────────────────
+  // These pulse outward like ripples, modulated by bass
+  const ringCount = 18 + Math.floor(bass*14);
+  for(let ri=0; ri<ringCount; ri++){
+    const frac  = ri/ringCount;
+    const rad   = frac * R * (1 + bass*0.25);
+    // phase per ring creates travelling wave illusion
+    const phase = frac*Math.PI*8 - T*3.5;
+    // amplitude of distortion: outer rings squish more with high freq
+    const amp   = (0.04 + spec*0.08 + high*0.06) * rad;
+    // brightness falls off toward outer edge
+    const brt   = Math.pow(1-frac, 0.5);
+    const alpha = (0.04 + brt*0.18 + rms*0.12) * (0.5 + bass*0.5);
+    const warm  = 0.3 + frac*0.5 + bass*0.2;
+    const col   = cymaticColor(Math.min(1,warm), alpha);
+
+    const SEGS = 320;
+    const pts = [];
+    for(let s=0; s<=SEGS; s++){
+      const a = (s/SEGS)*Math.PI*2;
+      // distortion: interference between 2 frequencies
+      const dist = amp * (
+        Math.sin(3*a + phase) +
+        Math.sin(5*a - phase*1.3 + mid*4) +
+        Math.sin(2*a + phase*0.7 + bass*3)
+      ) * 0.33;
+      const r2 = rad + dist;
+      pts.push([cx + Math.cos(a)*r2, cy + Math.sin(a)*r2]);
+    }
+    gl2.lineWidth = 0.5 + brt*1.5 + rms*2;
+    drawCurve(pts, gl2.lineWidth, col);
+  }
+
+  // ─── 2. STANDING WAVE RIBBONS (the horizontal eye shape) ─────────────────
+  // Multiple Lissajous-like ribbons crossing the centre
+  const ribbonCount = 6 + Math.floor(mid*6);
+  for(let ri=0; ri<ribbonCount; ri++){
+    const frac   = ri/ribbonCount;
+    const yOff   = (frac-0.5)*R*0.9;  // vertical spread
+    const freqX  = 2 + Math.floor(spec*5) + Math.floor(bass*2);
+    const freqY  = 1 + Math.floor(mid*3);
+    const phase1 = T*(0.8 + frac*0.4) + ri*0.7;
+    const phase2 = T*(1.1 - frac*0.3) + ri*1.1;
+
+    // amplitude of ribbon (thicker near centre)
+    const centFrac = 1 - Math.abs(frac-0.5)*2;
+    const ampY   = (20 + centFrac*120 + bass*80) * (1 + rms*1.5);
+    const ampX   = R * (0.5 + spec*0.3);
+
+    const warm  = 0.5 + centFrac*0.4 + bass*0.1;
+    const alpha = (0.08 + centFrac*0.35 + rms*0.2) * (0.4 + bass*0.6);
+    const col   = cymaticColor(Math.min(1,warm), alpha);
+
+    const SEGS = 400;
+    const pts  = [];
+    for(let s=0; s<=SEGS; s++){
+      const u  = (s/SEGS)*Math.PI*2;
+      const x  = cx + Math.sin(freqX*u + phase1)*ampX;
+      const y  = cy + yOff + Math.sin(freqY*u + phase2)*ampY * Math.sin(u); // envelope
+      pts.push([x, y]);
+    }
+    gl2.lineWidth = 0.6 + centFrac*2 + rms*3;
+    drawCurve(pts, gl2.lineWidth, col);
+  }
+
+  // ─── 3. RADIAL SPOKES (the fine vertical lines in reference) ─────────────
+  const spokeCount = 60 + Math.floor(high*80);
+  for(let si=0; si<spokeCount; si++){
+    const angle  = (si/spokeCount)*Math.PI*2;
+    const phase  = T*1.5 + angle*4;
+    const inner  = R*(0.05 + bass*0.1);
+    const outer  = R*(0.55 + spec*0.35 + Math.sin(angle*3 + T)*0.08);
+    const bright = 0.5 + 0.5*Math.sin(phase);
+    const alpha  = bright*(0.03 + high*0.08 + rms*0.06);
+    const warm   = 0.4 + bright*0.4 + bass*0.2;
+
+    gl2.beginPath();
+    gl2.moveTo(cx + Math.cos(angle)*inner, cy + Math.sin(angle)*inner);
+    gl2.lineTo(cx + Math.cos(angle)*outer, cy + Math.sin(angle)*outer);
+    gl2.strokeStyle = cymaticColor(Math.min(1,warm), alpha);
+    gl2.lineWidth   = 0.4 + bright*0.8;
+    gl2.stroke();
+  }
+
+  // ─── 4. BRIGHT CORE (the luminous centre) ────────────────────────────────
+  const coreR  = (30 + bass*120 + rms*80);
+  const coreG  = gl2.createRadialGradient(cx,cy,0, cx,cy,coreR);
+  coreG.addColorStop(0,   `rgba(255,220,80,${0.25 + rms*0.5})`);
+  coreG.addColorStop(0.3, `rgba(255,120,10,${0.12 + bass*0.2})`);
+  coreG.addColorStop(1,   'rgba(0,0,0,0)');
+  gl2.fillStyle = coreG;
+  gl2.fillRect(0,0,W,H);
+
+  // ─── 5. OUTER VIGNETTE ───────────────────────────────────────────────────
+  const vig = gl2.createRadialGradient(cx,cy,R*0.5, cx,cy,R*1.4);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.7)');
+  gl2.fillStyle = vig;
+  gl2.fillRect(0,0,W,H);
+}
+
+frame();
+</script>
+</body>
+</html>
