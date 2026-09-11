@@ -75,11 +75,22 @@
         }
 
         /* Image styles inside gallery items */
-        .gallery-item img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
+        .gallery-item {
+        break-inside: avoid;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: opacity 0.2s ease;
+
+        /* Rounded corners */
+        border-radius: 25px;
+        overflow: hidden;
+}
+
+         .gallery-item iframe {
+         width: 100%;
+         display: block;
+         border: none;
+}
 
         /* Pagination container styles */
         .pagination {
